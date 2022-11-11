@@ -1,6 +1,7 @@
 const express = require('express');
 const route = express.Router();
 const validator = require('validator');
+const bcrypt = require('bcrypt');
 
 const { User } = require('../model/user');
 
@@ -16,11 +17,13 @@ route.get('/user/getAll', (req,res) => {
 });
 
 // create user
-route.post('/user/create', (req,res) => {
+route.post('/user/create', async (req,res) => {
+  
+    const hashedPassword = await bcrypt.hash(req.body.password, 10)   
     const usr = new User({
         fullName: req.body.fullName,
         email: req.body.email,
-        password: req.body.password
+        password: hashedPassword
     });
     usr.save((err, data) => {
         if(!err){
@@ -37,19 +40,22 @@ route.post('/user/create', (req,res) => {
 });
 
 // update user
-route.put('/user/update/:email', (req,res) => {
+route.put('/user/update/:email', async (req,res) => {
+    const hashedPassword = await bcrypt.hash(req.body.password, 10)
     
     const usr = {
         fullName: req.body.fullName,
-        password: req.body.password
+        password: hashedPassword
     };
-    User.findOneAndUpdate({email: req.params.email}, { $set : usr}, {new:true}, (err,data) => {
-        if(!err){
+    const user = User.findOneAndUpdate({email: req.params.email}, { $set : usr}, {new:true}, (err,data) => {
+        if(user == null){
+            res.status(400).json({code: 400, message:"User Not Found"})
+            
+        }else if(!err){
             res.status(200).json({code: 200, message:"User Updated Successfully",
             updateUser:data})
         }
         else{
-            res.status(400).json({code: 400, message:"User Not Found"})
             console.log(err)
 
         }
@@ -59,10 +65,13 @@ route.put('/user/update/:email', (req,res) => {
 
 // delete user
 route.delete('/user/delete/:email', (req,res) => {
-    User.findOneAndDelete({email: req.params.email}, (err,data) =>{
-        if(!err){
+    const user = User.findOneAndDelete({email: req.params.email}, (err,data) =>{
+        if(user == null){
+            res.status(400).json({code: 400, message:"User Not Found"})
+        }
+        else if(!err){
             res.status(200).json({code: 200, message:"User Deleted Successfully",
-        deleteUser:data})
+            deleteUser:data})
         }
         else{
             console.log(err)
